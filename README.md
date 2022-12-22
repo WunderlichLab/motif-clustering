@@ -76,7 +76,7 @@ Here is an example of motif enrichment analysis in developmental and housekeepin
 
 ## Citation
 If you use this resource in your research, please kindly cite:
-- de Almeida, B.P., Reiter, F., Pagani, P., Stark, A. DeepSTARR predicts enhancer activity from DNA sequence and enables the de novo design of enhancers. bioRxiv (2021)
+- de Almeida, BP, Reiter, F, Pagani, P, Stark, A [DeepSTARR predicts enhancer activity from DNA sequence and enables the de novo design of synthetic enhancers](https://www.nature.com/articles/s41588-022-01048-5). Nature Genetics 2022
 
 ## Questions
 If you have any questions/requests/comments please contact me at [bernardo.almeida94@gmail.com](mailto:bernardo.almeida94@gmail.com).

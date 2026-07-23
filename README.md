@@ -1,23 +1,17 @@
 # Reference compendium of non-redundant TF motifs
 
-Here is the general workflow for systematically clustering motifs by similarity to remove redundancy. This approach was adapted from the awesome [Vierstra et al., Nature 2020](https://www.nature.com/articles/s41586-020-2528-x) ([code](https://github.com/jvierstra/motif-clustering)) and applied to 6,502 TF motif models from multiple species (mostly focused on *Drosophila* and human TFs).
+Repo forked from [bernardo-de-almeida/motif-clustering](https://github.com/bernardo-de-almeida/motif-clustering). Using the same motif clustering approach described by Bernardo, [Vierstra et al., Nature 2020](https://www.nature.com/articles/s41586-020-2528-x) ([code](https://github.com/jvierstra/motif-clustering)) but with an updated database of TF motifs from the Aerts lab. The metadata for each of the motif databases was sourced from [here](http://iregulon.aertslab.org/collections.html#motifcolldesc). In addition to using an updated database, we pick representative motifs for each cluster based on the following criteria:
+1. Motif must come from fly or has an equivalent in fly based on [similarity](https://resources.aertslab.org/cistarget/motif_collections/v10nr_clust_public/snapshots/motifs-v10-nr.flybase-m0.00001-o0.0.tbl)
+2. Motif must be expressed in S2* cells (TPM>1) based on RNA-seq data collected in paired RNA-seq and STARR-seq
+3. Motifs built with in in vitro methods (ex: B1H, SELEX) are prioritized over in vivo methods (ChIP-seq, DNase I footprints). 
+4. Motifs should maximize information content while minimizing sparsity
+5. Motifs built on more sequences (row sums of matrices) are prioritized over those built with fewer sequences.
 
 ## Included motif databases
-
-6,502 TF motif models were obtained from [iRegulon](http://iregulon.aertslab.org/collections.html) covering the following databases:
-- [Bergman](http://bergmanlab.genetics.uga.edu/?page_id=274) (version 1.1; [Down et al., 2007](https://www.ncbi.nlm.nih.gov/pubmed/17238282))
-- [CIS-BP](http://cisbp.ccbr.utoronto.ca/) (version 1.02; [Weirauch et al., 2014](https://www.ncbi.nlm.nih.gov/pubmed/25215497))
-- [FlyFactorSurvey](http://pgfe.umassmed.edu/ffs/) (2010; [Zhu et al., 2011](https://www.ncbi.nlm.nih.gov/pubmed/21097781))
-- [HOMER](http://homer.salk.edu/homer/) (2010; [Heinz et al., 2010](https://www.ncbi.nlm.nih.gov/pubmed/20513432))
-- [JASPAR](http://jaspar.genereg.net/) (version 5.0_ALPHA; [Mathelier et al., 2016](https://www.ncbi.nlm.nih.gov/pubmed/26531826))
-- Stark (2007; [Stark et al., 2007](https://www.ncbi.nlm.nih.gov/pubmed/17994088))
-- [iDMMPMM](http://autosome.ru/iDMMPMM/) (2009; [Kulakovskiy and Makeev, 2009](https://link.springer.com/article/10.1134/S0006350909060013))
-
-TF motif models were downloaded from [here](https://resources.aertslab.org/papers/iregulon/motifColl-10k-all-public.tar.gz) in cluster-buster format (see here for details on the format: https://aertslab.org/#data-resources-all, under *SUPPLEMENTARY MATERIAL TO THE IREGULON PAPER*).
+TF motif models were downloaded from [iRegulon/iCisTarget](https://resources.aertslab.org/cistarget/motif_collections/v10nr_clust_public/) in cluster-buster format (see here for details on the format: https://aertslab.org/#data-resources-all, under *SUPPLEMENTARY MATERIAL TO THE IREGULON PAPER*).
 
 ## Requirements
-
-- R 3.5.1
+- R
   - data.table
   - motifStack
   - TFBSTools
@@ -47,39 +41,3 @@ Example of [cluster 30 highlighted](https://data.starklab.org/almeida/Motif_clus
 **Create_consensus_TF_motif_database.Rmd**
 - Step 6: Curate metadata information with cluster information and save PWM models into single R object [TF_clusters_PWMs.RData](https://data.starklab.org/almeida/Motif_clustering/TF_clusters_PWMs.RData)
 <br/><br/>
-
-## Final compendium of non-redundant TF motifs
-Download R object: [TF_clusters_PWMs.RData](https://data.starklab.org/almeida/Motif_clustering/TF_clusters_PWMs.RData)
-
-**TF_clusters_PWMs.RData** is a list containing:
-- metadata table with information for each TF motif model
-- list with all PWMs (log-odds, position weight matrix)
-- list with all PWMs (position probability matrix) 
-
-More information about PWM formats (Position weight matrix): https://en.wikipedia.org/wiki/Position_weight_matrix
-<br/><br/>
-
-## Scan genome using all motif models
-These motif models can be used to scan any DNA sequence of interest in R as follows:
-```
-library(motifmatchr) # (https://bioconductor.org/packages/release/bioc/html/motifmatchr.html)
-
-# using PWM log-odds
-load("TF_clusters_PWMs.RData")
-motif_ix <- matchMotifs(TF_clusters_PWMs$All_pwms_log_odds,
-                        Sequences,
-                        genome = "BSgenome.Dmelanogaster.UCSC.dm3", p.cutoff = 1e-4, bg="genome", out = "scores")
-```
-
-## Enrichment of TF motifs in developmental and housekeeping Drosophila S2 enhancers
-Here is an example of motif enrichment analysis in developmental and housekeeping Drosophila S2 enhancers over negative regions ([volcano plots](https://data.starklab.org/almeida/Drosophila_enhancers_motif_enrichment/Motif_enrichment_volcano_plots.pdf)) using this TF motif database. To remove motif redundancy, only the most significant TF motif per motif cluster was shown.
-
-## Citation
-If you use this resource in your research, please kindly cite:
-- de Almeida, BP, Reiter, F, Pagani, P, Stark, A [DeepSTARR predicts enhancer activity from DNA sequence and enables the de novo design of synthetic enhancers](https://www.nature.com/articles/s41588-022-01048-5). Nature Genetics 2022
-
-## Questions
-If you have any questions/requests/comments please contact me at [bernardo.almeida94@gmail.com](mailto:bernardo.almeida94@gmail.com).
-
-## Acnowledgments
-We thank Gert Hulselmans and [Stein Aerts](https://aertslab.org/) for sharing the TF motif PWM collection. This approach was inspired on [Jeff Vierstra](https://www.vierstra.org/)'s work (see here for more details on his [Non-redundant TF motif matches genome-wide for mouse and human TFs](https://www.vierstra.org/resources/motif_clustering)).

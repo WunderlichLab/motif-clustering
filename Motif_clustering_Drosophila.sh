@@ -36,9 +36,15 @@ source ./common.sh
 # prerun command, imported from common.sh
 prerun
 
-# set the 'argument' variable equal to the first argument on the command line, else foo
-# default function imported from common.sh
-argument="$(default $1 foo)"
+
+# INPUT PARAMETERS
+cb_database="$(default $1 ${datafolder}/learn_starrmotifs/data/ict2022.cb)"
+
+# OUTPUT PARAMETERS
+meme_database="$(default $2 ${datafolder}/learn_starrmotifs/data/ict2022.meme)"
+genome_fa=""
+markov_model=""
+tomtom_out=""
 
 #####
 # Step 1: Prepare motif databases
@@ -48,16 +54,10 @@ argument="$(default $1 foo)"
 # (see here for details on the format: https://aertslab.org/#data-resources-all, under *SUPPLEMENTARY MATERIAL TO THE IREGULON PAPER*)
 
 # create Markov Background Model - order 3
-fasta-get-markov -n m /groups/stark/genomes/dm3/dm3.fa dm3.3-order.markov
+fasta-get-markov -n m ${genome_fa} ${markov_model}
 
 # convert PWM models to MEME format
-chen2meme singletons/bergman*cb -bg dm3.3-order.markov > all.dbs.meme
-chen2meme singletons/cisbp*cb -bg dm3.3-order.markov >> all.dbs.meme
-chen2meme singletons/flyfactorsurvey*cb -bg dm3.3-order.markov >> all.dbs.meme
-chen2meme singletons/homer*cb -bg dm3.3-order.markov >> all.dbs.meme
-chen2meme singletons/jaspar*cb -bg dm3.3-order.markov >> all.dbs.meme
-chen2meme singletons/stark*cb -bg dm3.3-order.markov >> all.dbs.meme
-chen2meme singletons/idmmpmm*cb -bg dm3.3-order.markov >> all.dbs.meme
+chen2meme ${database} -bg ${markov_model} > ${meme_database}
 
 #####
 # Step 2: Compute pair-wise motif similarity
@@ -68,11 +68,11 @@ tomtom \
 	-motif-pseudo 0.1 \
 	-text \
 	-min-overlap 1 \
-	all.dbs.meme all.dbs.meme \
-> tomtom.all.txt
+	${meme_database} ${meme_database} \
+> ${tomtom_out}
 
 # remove last lines that have details
-head -n -4 tomtom.all.txt > tomtom.all.treated.txt
+head -n -4 ${tomtom_out} > ${tomtom_out}
 
 #####
 # Step 3: Hierarchically cluster motifs by similarity in R (Motif_clustering.R)

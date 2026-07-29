@@ -38,7 +38,7 @@ prerun
 
 
 # INPUT PARAMETERS
-cb_database="$(default $1 ${datafolder}/learn_starrmotifs/data/ict2022.cb)"
+cb_database="$(default $1 ${datafolder}/motif-clustering/data/ict2022.cb)"
 
 # OUTPUT PARAMETERS
 meme_database="$(default $2 ${datafolder}/motif-clustering/data/ict2022.meme)"

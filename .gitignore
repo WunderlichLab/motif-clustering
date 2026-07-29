@@ -4,3 +4,4 @@ TF_motif_clusters_threshold0.8_manual_annotation.csv
 all_singletons.cb
 .*
 data
+logs

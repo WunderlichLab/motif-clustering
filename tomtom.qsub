@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #
-# Run this file using 'qsub template.qsub argument'
+# Run this file using 'qsub tomtom.qsub argument'
 
 # All lines starting with "#$" are SGE qsub commands
 
@@ -11,7 +11,7 @@
 #$ -j y
 
 # Name the file where to redirect standard output and error
-#$ -o logs/template.log
+#$ -o logs/tomtom.log
 
 # Send an email when the job finishes
 #$ -m eas

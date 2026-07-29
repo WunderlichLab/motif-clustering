@@ -41,38 +41,38 @@ prerun
 cb_database="$(default $1 ${datafolder}/learn_starrmotifs/data/ict2022.cb)"
 
 # OUTPUT PARAMETERS
-meme_database="$(default $2 ${datafolder}/learn_starrmotifs/data/ict2022.meme)"
-genome_fa=""
-markov_model=""
-tomtom_out=""
+meme_database="$(default $2 ${datafolder}/motif-clustering/data/ict2022.meme)"
+genome_fa="$(default $3 ${datafolder}/reference/dmel-all-chromosome-r6.65-ucsc.fasta)"
+markov_model="$(default $4 ${datafolder}/motif-clustering/data/dm6.3-order.markov)"
+tomtom_out="$(default $5 ${datafolder}/motif-clustering/data/tomtom.all.txt)"
 
 #####
 # Step 1: Prepare motif databases
 #####
 
-# TF motif models were downloaded from https://resources.aertslab.org/papers/iregulon/motifColl-10k-all-public.tar.gz in cluster-buster format
+# TF motif models were downloaded from https://resources.aertslab.org/cistarget/motif_collections/v10nr_clust_public/ in cluster-buster format
 # (see here for details on the format: https://aertslab.org/#data-resources-all, under *SUPPLEMENTARY MATERIAL TO THE IREGULON PAPER*)
 
 # create Markov Background Model - order 3
-fasta-get-markov -n m ${genome_fa} ${markov_model}
+run "fasta-get-markov -n m ${genome_fa} ${markov_model}"
 
 # convert PWM models to MEME format
-chen2meme ${database} -bg ${markov_model} > ${meme_database}
+run "chen2meme ${database} -bg ${markov_model} > ${meme_database}"
 
 #####
 # Step 2: Compute pair-wise motif similarity
 #####
 
-tomtom \
+run "tomtom \
 	-dist kullback \
 	-motif-pseudo 0.1 \
 	-text \
 	-min-overlap 1 \
 	${meme_database} ${meme_database} \
-> ${tomtom_out}
+> ${tomtom_out}"
 
 # remove last lines that have details
-head -n -4 ${tomtom_out} > ${tomtom_out}
+run "head -n -4 ${tomtom_out} > ${tomtom_out}"
 
 #####
 # Step 3: Hierarchically cluster motifs by similarity in R (Motif_clustering.R)

@@ -3,4 +3,6 @@ TF_clusters_PWMs.RData
 TF_motif_clusters_threshold0.8_manual_annotation.csv
 all_singletons.cb
 .*
+data
+logs
 v10nr_clust_public/

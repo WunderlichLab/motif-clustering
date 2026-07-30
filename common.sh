@@ -3,7 +3,7 @@
 # Some common functionality to avoid repeating it in each qsub
 
 # Set datafolder
-datafolder="/projectnb/wunderl/thadz/"
+datafolder="/projectnb/wunderl/thadz"
 
 # Used for default command-line arguments, e.g. `default $1 foo` will return the first argument, if it exists, otherwise foo.
 function default() {

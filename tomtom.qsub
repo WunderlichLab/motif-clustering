@@ -54,10 +54,10 @@ tomtom_out="$(default $5 ${datafolder}/motif-clustering/data/tomtom.all.txt)"
 # (see here for details on the format: https://aertslab.org/#data-resources-all, under *SUPPLEMENTARY MATERIAL TO THE IREGULON PAPER*)
 
 # create Markov Background Model - order 3
-run "fasta-get-markov -n m ${genome_fa} ${markov_model}"
+run "fasta-get-markov -m 3 ${genome_fa} > ${markov_model}"
 
 # convert PWM models to MEME format
-run "chen2meme ${database} -bg ${markov_model} > ${meme_database}"
+run "chen2meme ${cb_database} -bg ${markov_model} > ${meme_database}"
 
 #####
 # Step 2: Compute pair-wise motif similarity

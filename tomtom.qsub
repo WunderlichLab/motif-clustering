@@ -20,7 +20,7 @@
 #$ -l mem_per_core=8G 
 
 # Request 24 hours
-#$ -l h_rt=24:00:00
+#$ -l h_rt=72:00:00
 
 # Request more cores, this will affect your queue time, make sure your program supports multithreading, or it's a waste
 # -pe omp 1

@@ -48,6 +48,7 @@ meme_database="$(default $2 ${datafolder}/motif-clustering/data/ict2022_fly.meme
 genome_fa="$(default $3 ${datafolder}/reference/dmel-all-chromosome-r6.65-ucsc.fasta)"
 markov_model="$(default $4 ${datafolder}/motif-clustering/data/dm6.3-order.markov)"
 tomtom_out="$(default $5 ${datafolder}/motif-clustering/data/tomtom.all.txt)"
+tomtom_final="$(default $6 ${datafolder}/motif-clustering/data/tomtom.all.treated.txt)"
 
 #####
 # Step 1: Prepare motif databases
@@ -75,7 +76,7 @@ run "tomtom \
 > ${tomtom_out}"
 
 # remove last lines that have details
-run "head -n -4 ${tomtom_out} > ${tomtom_out}"
+run "head -n -4 ${tomtom_out} > ${tomtom_final}"
 
 #####
 # Step 3: Hierarchically cluster motifs by similarity in R (Motif_clustering.R)

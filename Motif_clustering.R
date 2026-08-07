@@ -1,31 +1,16 @@
-
-# load motifs
-load("/groups/stark/almeida/data/motifs/motif_collection_v7_no_transfac_SteinAerts/TF_clusters_PWMs.RData")
-# correct names
-TF_clusters_PWMs$metadata$motif_description2 <- as.character(TF_clusters_PWMs$metadata$motif_description)
-TF_clusters_PWMs$metadata$motif_description2 <- sapply(strsplit(TF_clusters_PWMs$metadata$motif_description2,"_"), `[`, 1)
-TF_clusters_PWMs$metadata$motif_description2 <- sapply(strsplit(TF_clusters_PWMs$metadata$motif_description2,"/"), `[`, 1)
-TF_clusters_PWMs$metadata$motif_description2 <- sapply(strsplit(TF_clusters_PWMs$metadata$motif_description2,"\\("), `[`, 1)
-TF_clusters_PWMs$metadata$motif_description2 <- sapply(strsplit(TF_clusters_PWMs$metadata$motif_description2,"\\["), `[`, 1)
-TF_clusters_PWMs$metadata$motif_description2[complete.cases(TF_clusters_PWMs$metadata$Dmel)] <- TF_clusters_PWMs$metadata$Dmel[complete.cases(TF_clusters_PWMs$metadata$Dmel)]
-
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("ttk-PF", "ttk", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("tramtrack", "ttk", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("Kruppel", "Kr", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("activating-protein 1 \\(FOS-JUN heterodimer\\)", "kay_Jra", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("homer__GCTGATAASV_Unknown5", "GATAA", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("cisbp__M2335", "GATAA", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("TIFDMEM0000091", "Ohler6", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("ENSG00000235187", "Ets", TF_clusters_PWMs$metadata$motif_description2)
-TF_clusters_PWMs$metadata$motif_description2 <- gsub("Ohler5\\(E-box\\)", "Ohler5", TF_clusters_PWMs$metadata$motif_description2)
+library(data.table)
+library(dendextend)
+library(TFBSTools)
+library(motifStack)
 
 #####
 # Step 3: Hierarchically cluster motifs by similarity
 #####
 # based on Jeff Vierstra https://raw.githubusercontent.com/jvierstra/motif-clustering/master/hierarchical.py
 
-sim_file <- "tomtom.all.treated.txt"
-sim <- read.delim(sim_file)
+sim_file <- "data/tomtom.all.treated.txt"
+sim <- as.data.table(read.delim(sim_file))
+
 simsq <- data.table::dcast(sim, Query_ID~Target_ID, value.var = "E.value")
 rownames(simsq) <- simsq$Query_ID
 simsq <- simsq[,-1]
@@ -47,13 +32,13 @@ end=1.0
 
 thresholds=seq(start, end, step)
 
-pdf("Hierarchical_clusters_diff_thresholds.pdf", width = 20, height = 5)
+pdf("data/Hierarchical_clusters_diff_thresholds.pdf", width = 20, height = 5)
 for(thresh in thresholds){
   
   cl = dendextend:::cutree(Z, h=thresh, order_clusters_as_data = FALSE)
   df = data.frame(Motifs=names(mat),
                   Cluster=cl[match(names(mat), names(cl))])
-  write.table(df, paste0("clusters.", thresh,".txt"), sep="\t", row.names = F, quote=F)
+  write.table(df, paste0("data/clusters/clusters.", thresh,".txt"), sep="\t", row.names = F, quote=F)
 
   plot(Z, labels=FALSE, main=paste0("tree height: ",thresh, " - ", length(unique(df$Cluster)), " clusters"))
   abline(h=thresh, col="red")
@@ -65,17 +50,17 @@ dev.off()
 
 
 ### choose final clusters cutting the dendrogram at height 0.8
-thresh=0.8
+thresh=0.7
 cl = dendextend:::cutree(Z, h=thresh, order_clusters_as_data = FALSE)
 df = data.frame(Motifs=names(mat),
                 Cluster=cl[match(names(mat), names(cl))],
                 Order_dendogram=match(names(mat), Z$labels[Z$order]))
-df <- merge(df, TF_clusters_PWMs$metadata[,c(1,13,10)], by=1)
+#df <- merge(df, TF_clusters_PWMs$metadata[,c(1,13,10)], by=1)
 df <- df[order(df$Order_dendogram),]
 length(unique(df$Cluster))
 sort(table(df$Cluster))
-save(Z, mat, file = paste0("All_motifs_data_and_hclust_objects.Rdata"))
-saveRDS(df, paste0("All_motifs_final_clusters_thresh", thresh, ".rds"))
+save(Z, mat, file = paste0("data/All_motifs_data_and_hclust_objects.Rdata"))
+saveRDS(df, paste0("data/All_motifs_final_clusters_thresh", thresh, ".rds"))
 
 
 ### plot hierarchical clustering heatmap of motifs clustered by simililarity and clusters identified cutting the dendrogram at height 0.8
@@ -83,7 +68,7 @@ saveRDS(df, paste0("All_motifs_final_clusters_thresh", thresh, ".rds"))
 # with column 1 at the bottom, i.e. a 90 degree counter-clockwise rotation of the conventional printed layout of a matrix.
 # that's why I need to reverse the order of the columns
 # top-right should represent cluster1. - and so on
-png(paste0("All_motifs_hierarchically_clustered_heatmap_pairwise_similarity_scores.png"), type="cairo", width = 2000, height = 2000, res = 300)
+png(paste0("data/All_motifs_hierarchically_clustered_heatmap_pairwise_similarity_scores.png"), width = 2000, height = 2000, res = 300)
 out <- tmp_cor[Z$order,rev(Z$order)]
 image(out, col=c("white", "black"), # colorRampPalette(c("grey100", "grey0"))(100)
       las=1, xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
@@ -91,7 +76,7 @@ dev.off()
 
 # highlight specific clusters on the hierarchical clustering heatmap
 for(c in 1:length(unique(df$Cluster))){
-  png(paste0("Highlight_cluster_",c,".png"), type="cairo", width = 2000, height = 2000, res = 50)
+  png(paste0("data/clusters/Highlight_cluster_",c,".png"), width = 2000, height = 2000, res = 50)
   highli <- names(cl)[which(cl==c)]
   image(out, col=c("white", "black"),
         las=1, xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
@@ -141,9 +126,6 @@ TF_motif_clusters_manual_annotation <- read.csv("TF_motif_clusters_threshold0.8_
 
 ### done in R script Plot_motif_logos.R
 # add name to PDF filename
-
-# plot clusters
-library(motifStack)
 
 # prepare motifs in motifStack format
 PWM_candidates <- TF_clusters_PWMs$metadata[TF_clusters_PWMs$metadata$X..motif_collection_name %in% c("bergman",

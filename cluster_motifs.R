@@ -2,6 +2,7 @@ library(data.table)
 library(dendextend)
 library(TFBSTools)
 library(motifStack)
+library(ggplot)
 
 #####
 # Hierarchically cluster motifs by similarity
@@ -38,6 +39,16 @@ for(thresh in thresholds){
   cl = dendextend:::cutree(Z, h=thresh, order_clusters_as_data = FALSE)
   df = data.frame(Motifs=names(mat),
                   Cluster=cl[match(names(mat), names(cl))])
+  cluster_counts = df |> count(Cluster)
+  
+  print(ggplot(cluster_counts, aes(x = n)) +
+    geom_histogram(binwidth = 3, fill = "#3a86d4", alpha = 0.7) +
+    labs(x = "Number of motifs per cluster", y = "Count") +
+    theme_minimal() +
+    ggtitle(paste0("Threshold ", thresh, 
+                   "; Median motifs per cluster ", median(cluster_counts$n),
+                   "; Mean motifs per cluster ", round(mean(cluster_counts$n), digits=2))))
+  
   write.table(df, paste0("data/clusters/clusters.", thresh,".txt"), sep="\t", row.names = F, quote=F)
 
   plot(Z, labels=FALSE, main=paste0("tree height: ",thresh, " - ", length(unique(df$Cluster)), " clusters"))
@@ -50,7 +61,7 @@ dev.off()
 
 
 ### choose final clusters cutting the dendrogram at height 0.8
-thresh=0.7
+thresh=0.9
 cl = dendextend:::cutree(Z, h=thresh, order_clusters_as_data = FALSE)
 df = data.frame(Motifs=names(mat),
                 Cluster=cl[match(names(mat), names(cl))],
@@ -61,6 +72,20 @@ length(unique(df$Cluster))
 sort(table(df$Cluster))
 save(Z, mat, file = paste0("data/All_motifs_data_and_hclust_objects.Rdata"))
 saveRDS(df, paste0("data/All_motifs_final_clusters_thresh", thresh, ".rds"))
+
+out <- tmp_cor[Z$order,rev(Z$order)]
+# highlight specific clusters of interests
+for(c in c(221, 246, 240)){
+  png(paste0("data/clusters/Highlight_cluster_",c,".png"), width = 2000, height = 2000, res = 50)
+  highli <- names(cl)[which(cl==c)]
+  image(out, col=c("white", "black"),
+        las=1, xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
+  axis(1, at=seq(0,1,length.out = nrow(out))[rownames(out) %in% highli], labels=rep("",length(highli)), col = "red")
+  axis(2, at=seq(0,1,length.out = nrow(out))[colnames(out) %in% highli], labels=rep("",length(highli)), col = "red")
+  dev.off()
+  print(c)
+}
+
 
 
 ### plot hierarchical clustering heatmap of motifs clustered by simililarity and clusters identified cutting the dendrogram at height 0.8

@@ -1,8 +1,6 @@
 library(data.table)
 library(dplyr)
 library(stringr)
-library(TFBSTools)
-library(motifStack)
 
 #####
 # Step 4: Annotation of motif clusters: Clusters were manually curated and annotated with the respective motif types
@@ -49,23 +47,79 @@ df <- df |> left_join(metacluster_info, by=join_by(Motifs)) |>
   mutate(gene_nm = coalesce(gene_nm.x, gene_nm.y)) |> 
   mutate(gene_nm.x=NULL, gene_nm.y=NULL)
 
+# for fly databases, replace metacluster info with single gene name
 
-# if cluster has 1-5 elements -> use most common (or random) motif name
+# bergman: remove gene names after dashes, replace underscores 
+df$gene_nm[df$database=="bergman"] <- str_split_i(df$id[df$database=="bergman"], "-", 1)
+df$gene_nm[df$gene_nm=="Su_H_"]<- "Su(H)"
+df$gene_nm[df$database=="bergman"] <- str_replace(df$gene_nm[df$database=="bergman"], "_", "/")
+
+# idmmpmm: no changes
+df$gene_nm[df$database=="idmmpmm"] <- df$id[df$database=="idmmpmm"]
+
+# flyfactorsurvey: remove assay information
+ffs_ids <- df$id[df$database=="flyfactorsurvey"]
+ids_no_assay <- str_split_i(str_split_i(str_split_i(str_split_i(str_split_i(str_split_i(ffs_ids, "_SOLEXA", 1),
+                                         "_SANGER", 1), "_Cell", 1), "_NBT", 1), "_FlyReg", 1), "_NAR", 1)
+df$gene_nm[df$database=="flyfactorsurvey"] <- ids_no_assay
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_split_i(df$gene_nm[df$database=="flyfactorsurvey"], "_F", 1)
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_split_i(df$gene_nm[df$database=="flyfactorsurvey"], "-F", 1)
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_split_i(df$gene_nm[df$database=="flyfactorsurvey"], "F1-", 1)
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_split_i(df$gene_nm[df$database=="flyfactorsurvey"], "-P", 1)
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_split_i(df$gene_nm[df$database=="flyfactorsurvey"], "-Z", 1)
+
+df$gene_nm[df$gene_nm=="Cf2-II"] <- "Cf2"
+df$gene_nm[df$gene_nm=="l_1_sc_da"] <- "l(1)sc/da"
+df$gene_nm[df$gene_nm=="E_spl_"] <- "E(spl)"
+df$gene_nm[df$gene_nm=="l_3_neo38"] <- "l(3)neo38"
+
+df$gene_nm[df$database=="flyfactorsurvey"] <- str_replace(df$gene_nm[df$database=="flyfactorsurvey"], "_", "/")
+
+# nitta
+df$gene_nm[df$database=="nitta"] <- str_split_i(df$id[df$database=="nitta"], "_", 1)
+df$gene_nm[df$gene_nm=="CrebB-17A"] <- "CrebB"
+df$gene_nm[df$gene_nm=="AP-"] <- "TfAP-"
+
+# annotate whether or not the cluster contains fly motifs 
+clusters <- unique(df$Cluster)
+df$Contains_fly <- NA
+for (cluster in clusters) {
+  df$Contains_fly[df$Cluster==cluster] <- "fly" %in% df[df$Cluster==cluster,7]
+}
+
+
+# annotate clusters with most common fly name(s)
 Cluster_IDs <- unique(df$Cluster)
 names(Cluster_IDs) <- Cluster_IDs
 Cluster_IDs <- sapply(Cluster_IDs, function(c){
   tmp <- df[df$Cluster == c,]
-  if(nrow(tmp)<6){
-    # first get the most common drosophila name
-    if(length(which(complete.cases(tmp$Dmel)))>0) out <- names(sort(table(tmp$Dmel), decreasing = TRUE)[1])
-    if(length(which(complete.cases(tmp$Dmel)))==0) out <- names(sort(table(tmp$motif_description2), decreasing = TRUE)[1])
-    return(out)
-  }else(return(NA))
+  
+  if(sum(tmp$Contains_fly)>0)  {
+    # take only the gene names from the fly databases if they are there
+    all_names <- str_split(paste(tmp$gene_nm[tmp$organism=="fly"], collapse=", "), ", ")[[1]]
+    }
+  else {
+    # otherwise take all gene names 
+    all_names <- str_split(paste(tmp$gene_nm, collapse=", "), ", ")[[1]]
+    } 
+  
+  gene_counts <- sort(table(all_names), decreasing = TRUE)
+  most_common_genes <- names(gene_counts[gene_counts==max(gene_counts)])
+  
+  if(sum(!str_detect(most_common_genes, "CG"))>0)  {
+    # if there are genes other than CG uncharacterized genes, take them out
+    most_common_genes <- most_common_genes[!str_detect(most_common_genes, "CG")]
+  }
+  
+  out <- paste(most_common_genes, collapse="/")
+  return(out)
 })
 
 df$Cluster_name <- Cluster_IDs[match(df$Cluster, names(Cluster_IDs))]
-# for the remaining clusters do it through manual curation
 
-# save table
-out <- df[order(df$motif_group),]
-write.table(out[!duplicated(out$Cluster),c(2,6,7)], paste0("All_final_clusters_thresh", thresh, "_annotated.txt"), sep="\t", row.names = F, quote=F)
+# mark which clusters need to be manually renamed (more than 4 genes)
+df$Manually_annotate <-str_count(df$Cluster_name, "/")>4
+
+# for the remaining clusters do it through manual curation
+out <- df[order(df$Order_dendogram),]
+write.table(out, paste0("data/All_final_clusters_annotated.txt"), sep="\t", row.names = F, quote=F)

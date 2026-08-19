@@ -2,7 +2,7 @@ library(data.table)
 library(dendextend)
 library(TFBSTools)
 library(motifStack)
-library(ggplot)
+library(ggplot2)
 
 #####
 # Hierarchically cluster motifs by similarity

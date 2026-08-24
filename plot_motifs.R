@@ -1,18 +1,89 @@
 library(data.table)
 library(dendextend)
+library(stringr)
+library(sparsevctrs)
 library(TFBSTools)
 library(motifStack)
 
 #####
 # Step 5: Plot motif logos aligned for each motif cluster
 #####
-# For each of the clusters, we then selected a seed motif model (top with absolute enrichment in dev or hk) to which we aligned all other motifs within cluster (both position and orientation; order motifs by absolute enrichment in dev or hk).
 
 # load motif cluster names
-TF_motif_clusters_manual_annotation <- read.csv("TF_motif_clusters_threshold0.8_manual_annotation.csv")
+df <- read.table("data/All_final_clusters_annotated_manualcheck.txt", sep="\t", header=TRUE)
 
-### done in R script Plot_motif_logos.R
-# add name to PDF filename
+# load PWMS
+## read matrix like fasta file - delimiter is the name of a matrix
+cbfile <- readLines("v10nr_clust_public/ict2022_fly.cb")
+tab_count <- str_count(cbfile, "\t")
+motif_names <- cbfile[tab_count==0]
+
+pfms_list <- c()
+## iterate backwards through text file, removing motifs as you go
+for (i in length(motif_names):1) {
+  ### name and index of last motif
+  motif <- motif_names[i]
+  motif_index <- which(motif == cbfile)
+  
+  ## get pwm
+  pfm_str <- cbfile[(motif_index+1):length(cbfile)]
+  pfm_df <- do.call(rbind, str_split(pfm_str, "\t"))
+  pfm_mat <- matrix(as.numeric(pfm_df), ncol = 4) 
+  
+  ## add pwm to list
+  pfms_list[[i]] <- pfm_mat
+  
+  ## remove motif from vector
+  cbfile <- cbfile[1:(motif_index)-1]
+}
+## remove carat from motif names
+motif_names <- str_replace(motif_names, ">", "")
+
+# put metadata and pwms in the same order
+df <- df[order(df$Motifs), ]
+pfms_list <- pfms_list[order(motif_names)]
+
+
+# create PFMatrix objects for each motif with metadata information
+tfbstools_pfms <- c()
+for (i in 1:length(pfms_list)) {
+  # transpose PFM
+  mat <- t(pfms_list[[i]])
+  rownames(mat) <- c("A", "C", "G", "T")
+  
+  # calculate information content, enrichment in Drosophila genome, and TF expression in Drosophila genome
+  
+  # format motifs according to TFBSTools
+  pfm <- PFMatrix(ID=df$Motifs[i], name=df$id[i], 
+                  strand="+",
+                  bg=c(A=0.25, C=0.25, G=0.25, T=0.25),
+                  tags=list(genes=df$gene_nm[i],
+                            num_sequences = sum(mat[,1]),
+                            norm_sparsity = sparsity(as.data.frame(mat))/0.75,
+                            information_content = "XXX",
+                            dmel_enrichment = "XXX",
+                            dmel_expression = "XXX",
+                            database=df$database[i],
+                            db_assay=df$type[i],
+                            db_organism=df$organism[i],
+                            cluster_name=df$Cluster_name[i],
+                            cluster_number=df$Cluster[i],
+                            dendogram_number=df$Order_dendogram[i]
+                            ),
+                  profileMatrix=mat)
+  
+  tfbstools_pfms[[i]] <- pfm
+  
+}
+
+
+
+
+
+
+
+
+
 
 # prepare motifs in motifStack format
 PWM_candidates <- TF_clusters_PWMs$metadata[TF_clusters_PWMs$metadata$X..motif_collection_name %in% c("bergman",

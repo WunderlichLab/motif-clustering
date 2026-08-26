@@ -111,8 +111,19 @@ for (i in 1:length(pfms_list)) {
 }
 
 # merge list into PFMatrixList object
-pfm.list <- do.call(PFMatrixList, tfbstools_pfms)
-names(pfm.list) <- df$Motifs
+tfbstools_pfmlist <- do.call(PFMatrixList, tfbstools_pfms)
+names(tfbstools_pfmlist) <- df$Motifs
+saveRDS(tfbstools_pfmlist, "data/allmotifs_tfbstools.rds")
+# tfbstools_pfmlist <- readRDS("data/allmotifs_tfbstools.rds")
+
+## Example: find the motif that is most enriched in the dmel genome in Cluster 42 (dl/shn)
+rel_cluster_ind <- order(df$Motifs)[df$Cluster_name=="dl/shn"]
+enrichment <- c()
+for (i in rel_cluster_ind) {
+  enrichment <- c(enrichment, tags(tfbstools_pfmlist[i])[[1]]$dmel_enrichment)
+}
+most_enriched_ind <- rel_cluster_ind[which(enrichment==max(enrichment))]
+tfbstools_pfmlist[most_enriched_ind]
 
 
 

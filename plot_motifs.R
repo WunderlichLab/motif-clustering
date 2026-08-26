@@ -84,12 +84,21 @@ for (i in 1:length(pfms_list)) {
                           out="scores")
   dmel_enrichment <- sum(motifScores(motif_ix))
   
+  #
+  gene_list <- str_split(genes, ", ")[[1]]
+  if(length(gene_list)>5) {
+    short_genes <- paste(paste(gene_list[1:5], collapse=", "), "...(+", length(gene_list)-5, ")")
+  }
+  else {
+    short_genes <- genes
+  }
   
   # format motifs according to TFBSTools
   pfm <- PFMatrix(ID=df$Motifs[i], name=df$id[i], 
                   strand="+",
                   bg=c(A=0.25, C=0.25, G=0.25, T=0.25),
                   tags=list(genes=genes,
+                            genes_short=short_genes,
                             num_sequences = sum(mat[,1]),
                             norm_sparsity = sparsity(as.data.frame(mat))/0.75,
                             information_content = information_content,
@@ -125,37 +134,24 @@ for (i in rel_cluster_ind) {
 most_enriched_ind <- rel_cluster_ind[which(enrichment==max(enrichment))]
 tfbstools_pfmlist[most_enriched_ind]
 
-
-
-
-
-
-
 # prepare motifs in motifStack format
-PWM_candidates <- TF_clusters_PWMs$metadata[TF_clusters_PWMs$metadata$X..motif_collection_name %in% c("bergman",
-                                                                                                      "cisbp",
-                                                                                                      "flyfactorsurvey",
-                                                                                                      "homer",
-                                                                                                      "jaspar",
-                                                                                                      "stark",
-                                                                                                      "idmmpmm"),]
-TF_clusters_PWMs$All_pwms_perc_selected <- TF_clusters_PWMs$All_pwms_perc[name(TF_clusters_PWMs$All_pwms_perc) %in% PWM_candidates$motif_name]
-All_motifs <- lapply(1:length(TF_clusters_PWMs$All_pwms_perc_selected), function(x){
-  new("pfm", mat=TF_clusters_PWMs$All_pwms_perc_selected[[x]]@profileMatrix,
-      name=paste0(name(TF_clusters_PWMs$All_pwms_perc_selected)[x], " (",
-                  TF_clusters_PWMs$metadata$motif_description2[match(name(TF_clusters_PWMs$All_pwms_perc_selected)[x], TF_clusters_PWMs$metadata$motif_name)], ") "))
+All_motifs <- lapply(1:length(tfbstools_pfmlist), function(x){
+  new("pfm", mat=sweep(tfbstools_pfmlist[[x]]@profileMatrix,2,colSums(tfbstools_pfmlist[[x]]@profileMatrix),`/`),
+      name=paste0(tfbstools_pfmlist[[x]]@ID, " (",
+                  tfbstools_pfmlist[[x]]@tags$genes_short, ") "))
 })
-names(All_motifs) <- name(TF_clusters_PWMs$All_pwms_perc_selected)
+names(All_motifs) <- names(tfbstools_pfmlist)
 
-saveRDS(All_motifs, "All_motifs_PWMs_motifStack_format.rds")
-# All_motifs <- readRDS("All_motifs_PWMs_motifStack_format.rds")
+saveRDS(All_motifs, "data/allmotifs_motifstack.rds")
+# All_motifs <- readRDS("data/allmotifs_motifstack.rds")
 
 for(c in 1:max(df$Cluster)){
   # c=4
   tmp <- df[df$Cluster == c,]
+  
   PWM_tmp <- All_motifs[match(tmp$Motifs, names(All_motifs))]
-  out <- paste0("Clusters_logos/Cluster", c, "_",
-                TF_motif_clusters_manual_annotation$Cluster_name[TF_motif_clusters_manual_annotation$Cluster==c], "_",
+  out <- paste0("data/logos/Cluster", c, "_",
+                str_replace_all(unique(tmp$Cluster_name), "/", ".."), "_",
                 nrow(tmp), "motifs.pdf")
   if(nrow(tmp)>2){
     
@@ -189,8 +185,3 @@ for(c in 1:max(df$Cluster)){
   dev.off()
   print(paste0("Cluster ", c))
 }
-
-
-#####
-# Step 6: Curate metadata information with cluster information and save PWM models into single R object (markdown Create_consensus_TF_motif_database.Rmd)
-#####

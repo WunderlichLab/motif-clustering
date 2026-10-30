@@ -3,6 +3,7 @@ library(dendextend)
 library(TFBSTools)
 library(motifStack)
 library(ggplot2)
+library(plotly)
 
 #####
 # Hierarchically cluster motifs by similarity
@@ -98,3 +99,14 @@ out <- tmp_cor[Z$order,rev(Z$order)]
 image(out, col=c("white", "black"), # colorRampPalette(c("grey100", "grey0"))(100)
       las=1, xlab="",ylab="",cex.axis=1,xaxt="n",yaxt="n")
 dev.off()
+
+subset_x <- 6000:(nrow(tmp_cor))
+subset_y <- 5000:(nrow(tmp_cor)-1000)
+
+out_1 <- tmp_cor[Z$order[subset_x],Z$order[subset_y]]
+
+plotly_fig <- plot_ly(
+  x = subset_x, y = rev(subset_y),
+  z = out_1, type = "heatmap")
+
+plotly_fig

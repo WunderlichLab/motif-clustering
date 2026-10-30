@@ -8,143 +8,50 @@ library(TFBSTools)
 library(motifStack)
 
 #####
-# Step 5: Plot motif logos aligned for each motif cluster
+# Step 6: Save individual clusters and plot motif logos aligned for each motif cluster
 #####
 
-# load motif cluster names
+# load metadata
 df <- read.table("data/All_final_clusters_annotated_manualcheck.txt", sep="\t", header=TRUE)
-
-# load PWMS
-## read matrix like fasta file - delimiter is the name of a matrix
-cbfile <- readLines("v10nr_clust_public/ict2022_fly.cb")
-tab_count <- str_count(cbfile, "\t")
-motif_names <- cbfile[tab_count==0]
-
-# load enhancer coordinates 
-starrseq_df <- read.table("data/all_enhancers.bed", sep='\t', header=FALSE)[, 1:3]
-colnames(starrseq_df) <- c("chr", "start", "end")
-starrseq_bed <- makeGRangesFromDataFrame(starrseq_df)
-
-# load TF expression data
-rnaseq <- read.csv("data/flymine_TFs_expression_coSTARR.csv")
-
-pfms_list <- c()
-## iterate backwards through text file, removing motifs as you go
-for (i in length(motif_names):1) {
-  ### name and index of last motif
-  motif <- motif_names[i]
-  motif_index <- which(motif == cbfile)
-  
-  ## get pwm
-  pfm_str <- cbfile[(motif_index+1):length(cbfile)]
-  pfm_df <- do.call(rbind, str_split(pfm_str, "\t"))
-  pfm_mat <- matrix(as.numeric(pfm_df), ncol = 4) 
-  
-  ## add pwm to list
-  pfms_list[[i]] <- pfm_mat
-  
-  ## remove motif from vector
-  cbfile <- cbfile[1:(motif_index)-1]
-}
-## remove carat from motif names
-motif_names <- str_replace(motif_names, ">", "")
-
-# put metadata and pwms in the same order
 df <- df[order(df$Motifs), ]
-pfms_list <- pfms_list[order(motif_names)]
 
+# load motifs in TFBSTools and motifstack format
+tfbstools_pfmlist <- readRDS("data/allmotifs_tfbstools.rds")
+All_motifs <- readRDS("data/allmotifs_motifstack.rds")
 
-# create PFMatrix objects for each motif with metadata information
-tfbstools_pfms <- c()
-for (i in 1:length(pfms_list)) {
-  # transpose PFM
-  mat <- t(pfms_list[[i]])
-  rownames(mat) <- c("A", "C", "G", "T")
+# save the PWMs in each cluster as separate files 
+for (c in 1:max(df$Cluster)) {
+  # get names of motifs in the cluster and extract PWMs
+  motif_names <- df$Motifs[df$Cluster==c]
+  cluster_name <- unique(df$Cluster_name[df$Cluster==c])
+  filtered_motifs <- tfbstools_pfmlist[df$Cluster==c]
   
-  # calculate information content
-  temp_pfm <- PFMatrix(profileMatrix=mat)
-  icm <- toICM(temp_pfm, pseudocounts=sqrt(rowSums(temp_pfm)[1]), schneider=FALSE,
-               bg=c(A=0.25, C=0.25, G=0.25, T=0.25))
-  information_content <- sum(Matrix(icm))
+  # create MEME file and write header
+  filename <- paste0("data/meme/Cluster", c, "_",
+                     str_replace_all(cluster_name, "/", ".."), "_",
+                     length(motif_names), "motifs.meme")
+  meme <- 'MEME version 5.5.5 (Thu Sep 14 08:48:04 2023 +1000)\n\nALPHABET= ACGT\n\nstrands: + -\n\nBackground letter frequencies (from uniform background):\nA 0.25000 C 0.25000 G 0.25000 T 0.25000'
+  write(meme,file=filename,append=TRUE)
   
-  # get TF expression in Drosophila genome
-  genes <- df$gene_nm[i]
-  filt_expression <- rnaseq[rnaseq$Gene_Symbol %in% str_split(genes, ", ")[[1]],]
-  tpm_ctrl <- max(filt_expression$Control.TPM.ave..Cohen.et.al.coSTARR.)
-  tpm_20e <- max(filt_expression$X20E.TPM.ave..Cohen.et.al.coSTARR)
-  tpm_hksm <- max(filt_expression$IMD.TPM.ave..Cohen.et.al.coSTARR.)
-  
-  # calculate enrichment in Drosophila enhancers
-  temp_pwm <- toPWM(temp_pfm, type="log2probratio", pseudocounts=0.8,
-               bg=c(A=0.25, C=0.25, G=0.25, T=0.25))
-  
-  motif_ix <- matchMotifs(temp_pwm,
-                          starrseq_bed,
-                          genome = "dm6",
-                          out="scores")
-  dmel_enrichment <- sum(motifScores(motif_ix))
-  
-  #
-  gene_list <- str_split(genes, ", ")[[1]]
-  if(length(gene_list)>5) {
-    short_genes <- paste(paste(gene_list[1:5], collapse=", "), "...(+", length(gene_list)-5, ")")
+  # write each PWM
+  for (i in 1:length(filtered_motifs)) {
+    # get PWM as df
+    motif_df <- sweep(filtered_motifs[[i]]@profileMatrix,2,colSums(filtered_motifs[[i]]@profileMatrix),`/`)
+    # MEME motif header
+    header <- paste0('\nMOTIF ', filtered_motifs[[i]]@ID, " ", filtered_motifs[[i]]@name, "\n\n",
+                     'letter-probability matrix: alength= 4 w= ', ncol(motif_df), ' nsites= ', filtered_motifs[[i]]@tags$num_sequences, ' E= 0\n')
+    
+    # format matrix - transform, add tabs and newlines
+    motif_df <- as.data.frame(t(motif_df))
+    motif_df[[1]] <- paste("  ", motif_df[[1]])
+    motif_df[[4]] <- paste(motif_df[[4]], "  ")
+    matrix_str <- do.call(paste, c(cbind(motif_df), sep = "   ", collapse = "\n"))
+    
+    write(paste0(header, matrix_str),file=filename,append=TRUE)
   }
-  else {
-    short_genes <- genes
-  }
-  
-  # format motifs according to TFBSTools
-  pfm <- PFMatrix(ID=df$Motifs[i], name=df$id[i], 
-                  strand="+",
-                  bg=c(A=0.25, C=0.25, G=0.25, T=0.25),
-                  tags=list(genes=genes,
-                            genes_short=short_genes,
-                            num_sequences = sum(mat[,1]),
-                            norm_sparsity = sparsity(as.data.frame(mat))/0.75,
-                            information_content = information_content,
-                            dmel_enrichment = dmel_enrichment,
-                            tpm_ctrl = tpm_ctrl,
-                            tpm_20e = tpm_20e,
-                            tpm_hksm = tpm_hksm,
-                            database=df$database[i],
-                            db_assay=df$type[i],
-                            db_organism=df$organism[i],
-                            cluster_name=df$Cluster_name[i],
-                            cluster_number=df$Cluster[i],
-                            dendogram_number=df$Order_dendogram[i]
-                            ),
-                  profileMatrix=mat)
-  
-  tfbstools_pfms[[i]] <- pfm
-  
 }
 
-# merge list into PFMatrixList object
-tfbstools_pfmlist <- do.call(PFMatrixList, tfbstools_pfms)
-names(tfbstools_pfmlist) <- df$Motifs
-saveRDS(tfbstools_pfmlist, "data/allmotifs_tfbstools.rds")
-# tfbstools_pfmlist <- readRDS("data/allmotifs_tfbstools.rds")
-
-## Example: find the motif that is most enriched in the dmel genome in Cluster 42 (dl/shn)
-rel_cluster_ind <- order(df$Motifs)[df$Cluster_name=="dl/shn"]
-enrichment <- c()
-for (i in rel_cluster_ind) {
-  enrichment <- c(enrichment, tags(tfbstools_pfmlist[i])[[1]]$dmel_enrichment)
-}
-most_enriched_ind <- rel_cluster_ind[which(enrichment==max(enrichment))]
-tfbstools_pfmlist[most_enriched_ind]
-
-# prepare motifs in motifStack format
-All_motifs <- lapply(1:length(tfbstools_pfmlist), function(x){
-  new("pfm", mat=sweep(tfbstools_pfmlist[[x]]@profileMatrix,2,colSums(tfbstools_pfmlist[[x]]@profileMatrix),`/`),
-      name=paste0(tfbstools_pfmlist[[x]]@ID, " (",
-                  tfbstools_pfmlist[[x]]@tags$genes_short, ") "))
-})
-names(All_motifs) <- names(tfbstools_pfmlist)
-
-saveRDS(All_motifs, "data/allmotifs_motifstack.rds")
-# All_motifs <- readRDS("data/allmotifs_motifstack.rds")
-
+# plot motifs in trees or stack
 for(c in 1:max(df$Cluster)){
   # c=4
   tmp <- df[df$Cluster == c,]
